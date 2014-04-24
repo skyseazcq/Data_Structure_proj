@@ -1,0 +1,17 @@
+$ ./primes 2 42 34155013283297 34155013283401 34155013283437
+Testing 4 candidate primes
+Number of threads: 2
+
+Candidate primes: 
+42
+34155013283297
+34155013283401
+34155013283437
+
+
+A total of 3 primes were identified
+34155013283297 is a prime number
+34155013283401 is a prime number
+34155013283437 is a prime number
+Testing the candidate primes  took   0.285416 seconds  on 2 threads
+#> 4 3 2 0.286516

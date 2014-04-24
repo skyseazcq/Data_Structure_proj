@@ -1,0 +1,8 @@
+The board file brd.txt uses the following format to represent the boggle board.
+
+The first line specifies the number of rows on the board, the second line
+the number of columns.
+
+Following these two lines there are rows*columns lines specifying the strings
+on the board's die faces in row major order: that is, first the entire first
+row of the board, then the entire second row, and so on.

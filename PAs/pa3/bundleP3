@@ -1,0 +1,198 @@
+#!/bin/bash -f
+
+clear
+
+ANUM=3
+
+CLSNAME=cs100t
+
+TARGET1=HCTree.hpp
+TARGET2=HCNode.hpp
+TARGET3=HCTree.cpp
+TARGET4=HCNode.cpp
+TARGET5=BitInputStream.hpp
+TARGET6=BitOutputStream.hpp
+TARGET7=BitInputStream.cpp
+TARGET8=BitOutputStream.cpp
+TARGET9=compress.cpp
+TARGET10=uncompress.cpp
+SIGN1=DECLARATION
+SIGN2=SIGNATURE
+
+TARGETS=( ${TARGET1} ${TARGET2} ${TARGET3} ${TARGET4} ${TARGET5} ${TARGET6} ${TARGET7} ${TARGET8} ${TARGET9} ${TARGET10} )
+SIGNS=( ${SIGN1} ${SIGN2} )
+REQFILES=("${TARGETS[@]}" "${SIGNS[@]}")
+
+if [[ ${UMBRELLA:-0} == 0 ]]; then
+    echo UMBRELLA environment variable not set.  Did you prep ${CLSNAME}?
+    exit 1;
+fi
+
+ASSMT=P${ANUM}
+
+TESTFILEDIR=${UMBRELLA}/public/${ASSMT}
+
+TESTCMDS=(
+# "cp ${TESTFILEDIR}/HCNode.hpp ."
+# "cp ${TESTFILEDIR}/HCTree.hpp ."
+ "FirstMatch.pl ${TARGETS[*]}"
+ "g++ -std=c++11 -g -c -o BitInputStream.o BitInputStream.cpp"
+ "g++ -std=c++11 -g -c -o BitOutputStream.o BitOutputStream.cpp"
+ "g++ -std=c++11 -g -c -o HCNode.o HCNode.cpp"
+ "g++ -std=c++11 -g -c -o HCTree.o HCTree.cpp"
+ "g++ -std=c++11 -g -o compress compress.cpp BitInputStream.o BitOutputStream.o HCNode.o HCTree.o"
+ "g++ -std=c++11 -g -o uncompress uncompress.cpp BitInputStream.o BitOutputStream.o HCNode.o HCTree.o"
+ "cp ${TESTFILEDIR}/input_files/justABC ."
+ "./compress justABC out"
+ "./uncompress out justABC-reconstructed"
+ "diff -qs justABC justABC-reconstructed"
+)
+
+
+TEMPDIR=/tmp/tt.$$
+TARFILE=tarfile
+TURNIN=/usr/local/bin/turnin
+
+function cleanup {
+    echo "Turnin NOT performed."
+    echo "Exiting..."
+    cd $TEMPDIR/..; /bin/rm -f -R $TEMPDIR
+    exit 1;
+}
+
+echo "--- CSE 100  $0 script ---"
+echo -n "Setting up clean environment... "
+# set up environment
+umask 077  # nobody else gets to peek at files we make
+# get rid of old path, set up clean one
+export PATH=${UMBRELLA}/public/bin:/software/common/gcc/bin:/software/nonrdist/valgrind-3.8.1/valgrind/bin:/usr/local/bin:/bin:/usr/bin:.
+echo "done."
+
+echo "Looking for required files in current working directory... "
+echo
+# figure out what the files are first
+/bin/mkdir $TEMPDIR
+FILESTOTURNIN=${TEMPDIR}/ff.$$
+touch ${FILESTOTURNIN}
+
+NFILES=${#REQFILES[@]}
+
+for (( i=0; i < NFILES; i++ )); do
+  reqfile=${REQFILES[$i]}
+  if [[ ! -r ${reqfile} ]]; then
+      echo "${reqfile} required, but not readable!"
+      echo
+      echo "(You need to fix this problem.)"
+      cleanup
+  fi
+  echo $reqfile >> ${FILESTOTURNIN}
+done
+
+if [[ -s ${FILESTOTURNIN} ]]; then
+    echo "Found these files to turn in:"
+    /bin/more ${FILESTOTURNIN}
+else
+    echo "Found none of the required files to turn in!"
+    echo "You need to fix this problem."
+    cleanup
+fi
+
+echo -n "Creating tar archive of your files to turn in... "
+#make temp directory to deposit tar file for quick testing
+cat ${FILESTOTURNIN} | xargs /bin/tar hcf $TEMPDIR/$TARFILE 
+echo " done."
+
+echo "We can compile and test your archive before turning it in."
+echo "This will catch some syntax errors and other simple errors only."
+echo "But you are strongly advised to perform this simple test."
+echo -n "Do you wish to perform this simple test? (y/n) "
+read ANSWER
+if [[ $ANSWER != "n" ]]; then  # simple tests
+cd $TEMPDIR
+echo "Extracting files from archive into temporary directory for simple testing... "
+/bin/tar xvf $TARFILE
+
+echo "Done untarring archive for simple test."
+echo -n "Ready to proceed with simple test? (y/n) "
+read ANSWER
+if [[ $ANSWER != "y" ]]; then
+    cleanup
+fi
+
+NCMDS=${#TESTCMDS[@]}
+PROBLEM=0
+
+for (( i=0; i < NCMDS; i++ )); do
+    echo "  " ${TESTCMDS[$i]}
+    ${TESTCMDS[$i]}
+    es=$?
+    if  [ $es != 0 ]; then
+	PROBLEM=1
+	break
+    fi
+done
+
+
+if [ $PROBLEM != 0 ]; then
+    echo "A problem was encountered during simple testing."
+    echo "You are strongly advised to fix this before continuing."
+    echo -n "Exit turnin to fix this? (y/n) "
+    read ANSWER
+    if [[ $ANSWER != "n" ]]; then
+	cleanup
+    fi
+else
+    echo "OK, simple tests passed."
+fi
+
+fi # simple tests
+
+echo "Size of the tar archive in bytes:"
+
+wc -c < ${TEMPDIR}/${TARFILE} 
+
+echo ""
+echo -n "Do you want to perform an actual turnin now? (y/n) "
+read ANSWER
+if [[ $ANSWER != "y" ]]; then
+    cleanup
+fi
+
+# Integrity of scholarship agreement
+echo ""
+echo "By performing this turnin, you declare that you have read"
+echo "and understood the rules for this course and this assignment"
+echo "concerning the limits of assistance allowed in completing"
+echo "the assignment, and have abided by those rules."
+echo ""
+
+echo -n "Do you agree? (y/n)"
+read ANSWER
+if [[ $ANSWER != "y" ]]; then
+    cleanup
+fi
+
+echo ""
+echo "Turning in files now... "
+
+${TURNIN} -c ${CLSNAME} -p ${ASSMT} ${TEMPDIR}/${TARFILE}
+
+if [ $? != 0 ]; then
+    cd $TEMPDIR/..; /bin/rm -f -R $TEMPDIR
+    echo ""
+    echo "TURNIN FAILED!!!"
+    echo "If the turnin truncated, it was too large."
+    echo "You need to remove some nonessential files."
+    echo "Fix the problem and try again."
+    echo ""
+    exit 1
+else
+    cd $TEMPDIR/..; /bin/rm -f -R $TEMPDIR
+    echo ""
+echo "--- End $0 script ---"
+    echo ""
+    exit 0
+fi
+
+
+exit 0
